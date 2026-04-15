@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StandupBot — Preview</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --cyan: #79c0ff;
+    --green: #56d364;
+    --red: #ff7b72;
+    --yellow: #e3b341;
+    --magenta: #d2a8ff;
+    --orange: #ffa657;
+    --tab-active: #1f6feb;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: -0.3px;
+  }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .badge {
+    background: #1f6feb22;
+    border: 1px solid #1f6feb66;
+    color: #79c0ff;
+    font-size: 10px;
+    padding: 1px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── Tab bar ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 18px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    font-size: 12px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--tab-active);
+  }
+  .tab .cmd { color: var(--cyan); font-weight: 600; }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: calc(100vh - 99px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 12px;
+    position: sticky;
+    top: 99px;
+    height: calc(100vh - 99px);
+    overflow-y: auto;
+  }
+  .sidebar-section { margin-bottom: 20px; }
+  .sidebar-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 0 8px;
+    margin-bottom: 6px;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+    transition: background 0.1s, color 0.1s;
+  }
+  .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-item.active { background: var(--surface2); color: var(--text); }
+  .sidebar-item .cmd-tag {
+    font-size: 10px;
+    color: var(--cyan);
+    background: #79c0ff11;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .sidebar-item .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-green { background: var(--green); }
+  .dot-cyan  { background: var(--cyan); }
+  .dot-magenta { background: var(--magenta); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+
+  /* ── Main content ── */
+  .main { padding: 28px 36px; overflow-y: auto; }
+
+  /* ── Screen panels ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── Terminal window ── */
+  .terminal {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .terminal-bar {
+    background: var(--surface2);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .dot-red-btn  { width:12px;height:12px;border-radius:50%;background:#ff5f57; }
+  .dot-yellow-btn { width:12px;height:12px;border-radius:50%;background:#febc2e; }
+  .dot-green-btn  { width:12px;height:12px;border-radius:50%;background:#28c840; }
+  .terminal-title {
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+  .terminal-body { padding: 16px 20px; }
+
+  /* ── Rich output primitives ── */
+  .prompt { color: var(--green); }
+  .prompt-cmd { color: var(--text); }
+  .prompt-arg { color: var(--yellow); }
+  .prompt-flag { color: var(--magenta); }
+
+  .rich-panel {
+    border: 1px solid;
+    border-radius: 4px;
+    margin: 10px 0;
+    overflow: hidden;
+  }
+  .rich-panel-title {
+    padding: 3px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid;
+  }
+  .rich-panel-body { padding: 12px 16px; white-space: pre-wrap; }
+
+  .panel-cyan  { border-color: #79c0ff55; }
+  .panel-cyan .rich-panel-title  { color: var(--cyan);    border-color: #79c0ff33; background: #79c0ff0a; }
+  .panel-green { border-color: #56d36455; }
+  .panel-green .rich-panel-title { color: var(--green);   border-color: #56d36433; background: #56d3640a; }
+  .panel-magenta { border-color: #d2a8ff55; }
+  .panel-magenta .rich-panel-title { color: var(--magenta); border-color: #d2a8ff33; background: #d2a8ff0a; }
+  .panel-yellow { border-color: #e3b34155; }
+  .panel-yellow .rich-panel-title { color: var(--yellow);  border-color: #e3b34133; background: #e3b3410a; }
+  .panel-red    { border-color: #ff7b7255; }
+  .panel-red .rich-panel-title    { color: var(--red);     border-color: #ff7b7233; background: #ff7b720a; }
+
+  /* ── Rich table ── */
+  .rich-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .rich-table th {
+    text-align: left;
+    padding: 5px 12px;
+    color: var(--cyan);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .rich-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #21262d;
+    vertical-align: top;
+    font-size: 12px;
+  }
+  .rich-table tr:last-child td { border-bottom: none; }
+  .rich-table-title {
+    text-align: center;
+    color: var(--text);
+    font-weight: 600;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    background: var(--surface2);
+    font-size: 12px;
+  }
+  .rich-table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 0 0 4px 4px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+
+  /* ── Status badges ── */
+  .status-open    { color: var(--green); }
+  .status-done    { color: var(--muted); }
+  .status-skipped { color: var(--yellow); }
+  .source-ai      { color: var(--magenta); font-size: 10px; opacity: 0.8; }
+
+  /* ── Inline text styles ── */
+  .c-cyan    { color: var(--cyan); }
+  .c-green   { color: var(--green); }
+  .c-red     { color: var(--red); }
+  .c-yellow  { color: var(--yellow); }
+  .c-magenta { color: var(--magenta); }
+  .c-muted   { color: var(--muted); }
+  .c-orange  { color: var(--orange); }
+  .bold      { font-weight: 700; }
+
+  /* ── Probability tiers ── */
+  .tier-probable  { color: var(--green);   font-weight: 700; font-size: 13px; margin: 12px 0 4px; }
+  .tier-possible  { color: var(--yellow);  font-weight: 700; font-size: 13px; margin: 12px 0 4px; }
+  .tier-unlikely  { color: var(--muted);   font-weight: 700; font-size: 13px; margin: 12px 0 4px; }
+  .tier-desc      { color: var(--muted);   font-size: 11px; font-style: italic; margin-bottom: 6px; }
+
+  .todo-item { padding: 3px 0; }
+  .todo-check { color: var(--muted); margin-right: 6px; }
+  .todo-text  { color: var(--text); }
+  .todo-proj  { color: var(--magenta); font-style: italic; font-size: 11px; }
+  .todo-ev    { color: var(--muted); font-size: 11px; }
+
+  /* ── Confidence badge ── */
+  .conf-low  { color: var(--yellow); font-size: 11px; border: 1px solid #e3b34144; padding: 3px 8px; border-radius: 3px; display: inline-block; margin-bottom: 8px; }
+  .conf-high { color: var(--green);  font-size: 11px; border: 1px solid #56d36444; padding: 3px 8px; border-radius: 3px; display: inline-block; margin-bottom: 8px; }
+  .conf-icon { margin-right: 4px; }
+
+  /* ── Insight sections ── */
+  .insight-h2 { color: var(--cyan); font-size: 14px; font-weight: 700; margin: 16px 0 8px; border-bottom: 1px solid #30363d; padding-bottom: 4px; }
+  .insight-h3 { color: var(--text); font-size: 12px; font-weight: 700; margin: 10px 0 4px; }
+  .insight-p  { color: var(--muted); font-size: 12px; margin-bottom: 6px; line-height: 1.5; }
+  .insight-bullet { padding-left: 16px; margin: 3px 0; font-size: 12px; }
+  .insight-bullet::before { content: '•'; color: var(--muted); margin-right: 6px; }
+  .positive-signal::before { content: '↑'; color: var(--green); margin-right: 6px; }
+  .watch-signal::before { content: '⚠'; color: var(--yellow); margin-right: 6px; }
+
+  .signal-pos { color: var(--green); }
+  .signal-warn { color: var(--yellow); }
+
+  /* ── Velocity table ── */
+  .vel-high   { color: var(--green); }
+  .vel-med    { color: var(--yellow); }
+  .vel-low    { color: var(--red); }
+  .vel-gap    { color: var(--muted); }
+
+  /* ── success / error lines ── */
+  .success-line { color: var(--green); margin: 4px 0; }
+  .error-line   { color: var(--red); }
+  .dim-line     { color: var(--muted); font-size: 11px; margin-top: 8px; }
+
+  /* ── Command usage block ── */
+  .usage-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+  }
+  .usage-title { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .usage-cmd   { margin: 4px 0; }
+  .usage-comment { color: var(--muted); }
+
+  /* ── Overview cards ── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .card-icon { font-size: 20px; margin-bottom: 8px; }
+  .card-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .card-value { color: var(--text); font-size: 18px; font-weight: 700; }
+  .card-sub   { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  /* ── Page title ── */
+  .page-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .page-sub   { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="logo">standup<span>bot</span></div>
+  <div class="badge">v0.1.0</div>
+</div>
+
+<!-- ── Tab bar ── -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview')">Overview</div>
+  <div class="tab" onclick="showTab('log')"><span class="cmd">log</span></div>
+  <div class="tab" onclick="showTab('show')"><span class="cmd">show</span></div>
+  <div class="tab" onclick="showTab('digest')"><span class="cmd">digest</span></div>
+  <div class="tab" onclick="showTab('todos')"><span class="cmd">todos</span></div>
+  <div class="tab" onclick="showTab('suggest')"><span class="cmd">suggest</span></div>
+  <div class="tab" onclick="showTab('insights')"><span class="cmd">insights</span></div>
+</div>
+
+<div class="layout">
+
+<!-- ── Sidebar ── -->
+<div class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Standup</div>
+    <div class="sidebar-item active" onclick="showTab('log')">
+      <div class="dot dot-green"></div>
+      <span class="cmd-tag">log</span> Today's standup
+    </div>
+    <div class="sidebar-item" onclick="showTab('show')">
+      <div class="dot dot-cyan"></div>
+      <span class="cmd-tag">show</span> View entries
+    </div>
+    <div class="sidebar-item" onclick="showTab('digest')">
+      <div class="dot dot-green"></div>
+      <span class="cmd-tag">digest</span> Weekly digest
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Todos</div>
+    <div class="sidebar-item" onclick="showTab('todos')">
+      <div class="dot dot-cyan"></div>
+      <span class="cmd-tag">todos</span> All items
+    </div>
+    <div class="sidebar-item" onclick="showTab('todos')">
+      <div class="dot dot-green"></div>
+      <span class="cmd-tag">add</span> New todo
+    </div>
+    <div class="sidebar-item" onclick="showTab('todos')">
+      <div class="dot dot-green"></div>
+      <span class="cmd-tag">done</span> Mark done
+    </div>
+    <div class="sidebar-item" onclick="showTab('todos')">
+      <div class="dot dot-yellow"></div>
+      <span class="cmd-tag">skip</span> Dismiss
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">AI Engine</div>
+    <div class="sidebar-item" onclick="showTab('suggest')">
+      <div class="dot dot-magenta"></div>
+      <span class="cmd-tag">suggest</span> Predictions
+    </div>
+    <div class="sidebar-item" onclick="showTab('insights')">
+      <div class="dot dot-yellow"></div>
+      <span class="cmd-tag">insights</span> Growth analysis
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<div class="main">
+
+<!-- ════════════════ OVERVIEW ════════════════ -->
+<div id="screen-overview" class="screen active">
+  <div class="page-title">StandupBot</div>
+  <div class="page-sub">Zero-fluff async standup logger + AI-powered predictability engine</div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <div class="card-label">This week</div>
+      <div class="card-value c-cyan">4</div>
+      <div class="card-sub">standup entries</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">✅</div>
+      <div class="card-label">Todos</div>
+      <div class="card-value c-green">3 / 7</div>
+      <div class="card-sub">done this week</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔮</div>
+      <div class="card-label">Confidence</div>
+      <div class="card-value c-magenta">Medium</div>
+      <div class="card-sub">7 entries logged</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔥</div>
+      <div class="card-label">Streak</div>
+      <div class="card-value c-yellow">4 days</div>
+      <div class="card-sub">consecutive standups</div>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standupbot — quick reference</div>
+    </div>
+    <div class="terminal-body">
+<span class="c-muted"># Daily workflow</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup log</span>          <span class="c-muted"># log today's standup (yesterday / today / blockers)</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup show</span>         <span class="c-muted"># show today's entry</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup show <span class="prompt-flag">--week</span></span>   <span class="c-muted"># show all entries this week</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup digest</span>       <span class="c-muted"># AI weekly digest</span>
+
+<span class="c-muted"># Todo management</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup add <span class="prompt-arg">"Fix auth bug"</span></span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup todos</span>        <span class="c-muted"># all todos + status</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup done <span class="prompt-arg">3</span></span>        <span class="c-muted"># mark #3 done</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup skip <span class="prompt-arg">4</span></span>        <span class="c-muted"># dismiss #4</span>
+
+<span class="c-muted"># AI predictability engine</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup suggest</span>      <span class="c-muted"># predict tomorrow's todos (needs ≥3 standups)</span>
+<span class="prompt">$</span> <span class="prompt-cmd">standup insights</span>     <span class="c-muted"># multi-week growth analysis</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ LOG ════════════════ -->
+<div id="screen-log" class="screen">
+  <div class="page-title">standup log</div>
+  <div class="page-sub">Log today's standup with three prompts.</div>
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup log</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup log</span>
+
+<span class="c-cyan">What did you do yesterday?</span>: Finished OAuth token flow, merged auth PR #42
+<span class="c-cyan">What are you doing today?</span>: Tackling the refresh-token edge case + writing unit tests
+<span class="c-cyan">Any blockers?</span>: Waiting on design mockups for the onboarding screen
+
+<span class="success-line">✓ Logged standup for 2026-04-15</span>
+    </div>
+  </div>
+
+  <div class="usage-block">
+    <div class="usage-title">Storage</div>
+    <div class="usage-cmd"><span class="c-muted">~/.standup/standup.db</span> — SQLite, one row per day</div>
+    <div class="usage-cmd"><span class="c-muted">Running log twice on the same day</span> <span class="c-yellow">overwrites</span> the previous entry (upsert).</div>
+  </div>
+</div>
+
+<!-- ════════════════ SHOW ════════════════ -->
+<div id="screen-show" class="screen">
+  <div class="page-title">standup show</div>
+  <div class="page-sub">View today's entry or the full week as a table.</div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup show</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup show</span>
+
+<div class="rich-panel panel-cyan" style="margin-top:10px">
+  <div class="rich-panel-title">Standup — 2026-04-15</div>
+  <div class="rich-panel-body"><span class="bold">Yesterday</span>
+Finished OAuth token flow, merged auth PR #42
+
+<span class="bold">Today</span>
+Tackling the refresh-token edge case + writing unit tests
+
+<span class="bold c-red">Blockers</span>
+Waiting on design mockups for the onboarding screen</div>
+</div>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup show --week</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup show <span class="prompt-flag">--week</span></span>
+
+<div class="rich-table-title">This Week's Standups</div>
+<div class="rich-table-wrap">
+<table class="rich-table">
+  <thead>
+    <tr>
+      <th>Date</th><th>Yesterday</th><th>Today</th><th>Blockers</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="c-cyan">2026-04-14</td>
+      <td>Scoped auth requirements, set up repo structure</td>
+      <td>Starting OAuth flow implementation</td>
+      <td class="c-red">—</td>
+    </tr>
+    <tr>
+      <td class="c-cyan">2026-04-15</td>
+      <td>Finished OAuth token flow, merged auth PR #42</td>
+      <td>Refresh-token edge case + unit tests</td>
+      <td class="c-red">Waiting on design mockups</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ DIGEST ════════════════ -->
+<div id="screen-digest" class="screen">
+  <div class="page-title">standup digest</div>
+  <div class="page-sub">Claude streams a structured weekly digest. Prompt cached — repeated calls are ~10× cheaper.</div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup digest</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup digest</span>
+
+<span class="c-muted">Generating weekly digest...</span>
+
+<div class="rich-panel panel-green">
+  <div class="rich-panel-title">Weekly Digest</div>
+  <div class="rich-panel-body"><div class="insight-h2">Key Accomplishments</div>
+<div class="insight-bullet">Merged auth PR #42 — OAuth token flow complete and in production</div>
+<div class="insight-bullet">Repo structure established, unblocking parallel frontend work</div>
+<div class="insight-bullet">Unit test coverage added for token issuance path</div>
+
+<div class="insight-h2">Current Focus / In-Progress</div>
+<div class="insight-bullet">Refresh-token edge case — near completion, only expiry boundary condition remains</div>
+<div class="insight-bullet">Onboarding screen UI — blocked on design mockups, work paused</div>
+
+<div class="insight-h2">Blockers &amp; Risks</div>
+<div class="insight-bullet"><span class="c-red">Design mockups (onboarding)</span> — blocked since Tuesday, no resolution in sight. Risk: onboarding work stalls into next week.</div>
+
+<div class="insight-h2">Patterns &amp; Trends</div>
+<div class="insight-bullet">Auth is the dominant project thread this week — 4 of 4 standup entries reference it.</div>
+<div class="insight-bullet">Velocity is high: 2 merged PRs in 2 days. Momentum is positive.</div>
+<div class="insight-bullet">Design dependency is the single point of risk. No internal blocker.</div></div>
+</div>
+
+<div class="dim-line">Tokens — input: 847, output: 312, cache read: 2501, cache write: 0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ TODOS ════════════════ -->
+<div id="screen-todos" class="screen">
+  <div class="page-title">Todo Management</div>
+  <div class="page-sub">add · done · skip · todos — zero friction task tracking.</div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup add / done / skip</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup add <span class="prompt-arg">"Fix refresh-token edge case"</span></span>
+<span class="success-line">✓ Todo #1 added: Fix refresh-token edge case</span>
+
+<span class="prompt">$</span> <span class="prompt-cmd">standup add <span class="prompt-arg">"Open PR for auth module"</span></span>
+<span class="success-line">✓ Todo #2 added: Open PR for auth module</span>
+
+<span class="prompt">$</span> <span class="prompt-cmd">standup add <span class="prompt-arg">"Update onboarding spec"</span></span>
+<span class="success-line">✓ Todo #3 added: Update onboarding spec</span>
+
+<span class="prompt">$</span> <span class="prompt-cmd">standup done <span class="prompt-arg">1</span></span>
+<span class="success-line">✓ Todo #1 marked done: Fix refresh-token edge case</span>
+
+<span class="prompt">$</span> <span class="prompt-cmd">standup skip <span class="prompt-arg">3</span></span>
+<span class="c-yellow">→</span> Todo <span class="bold">#3</span> skipped: <span class="c-muted">Update onboarding spec</span>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup todos</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup todos</span>
+
+<div class="rich-table-title">Todos</div>
+<div class="rich-table-wrap">
+<table class="rich-table">
+  <thead>
+    <tr><th>ID</th><th>Text</th><th>Status</th><th>Project</th><th>Added</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="c-muted">4</td>
+      <td>Write API docs for auth endpoints <span class="source-ai">ai</span></td>
+      <td class="status-open">open</td>
+      <td class="c-muted">docs</td>
+      <td class="c-muted">2026-04-15</td>
+    </tr>
+    <tr>
+      <td class="c-muted">2</td>
+      <td>Open PR for auth module</td>
+      <td class="status-open">open</td>
+      <td class="c-muted">auth</td>
+      <td class="c-muted">2026-04-15</td>
+    </tr>
+    <tr>
+      <td class="c-muted">3</td>
+      <td>Update onboarding spec</td>
+      <td class="status-skipped">skipped</td>
+      <td class="c-muted">product</td>
+      <td class="c-muted">2026-04-15</td>
+    </tr>
+    <tr>
+      <td class="c-muted">1</td>
+      <td>Fix refresh-token edge case</td>
+      <td class="status-done">done</td>
+      <td class="c-muted">auth</td>
+      <td class="c-muted">2026-04-15</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ SUGGEST ════════════════ -->
+<div id="screen-suggest" class="screen">
+  <div class="page-title">standup suggest</div>
+  <div class="page-sub">AI predictability engine — analyses standup history + open todos to surface probable next-day tasks.</div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup suggest</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup suggest</span>
+
+<span class="c-muted">Generating predictions...</span>
+
+<div class="rich-panel panel-magenta">
+  <div class="rich-panel-title">Tomorrow's Predicted Todos</div>
+  <div class="rich-panel-body">
+<div class="conf-high"><span class="conf-icon">✦</span> Pattern confidence: MEDIUM–HIGH (7 entries)</div>
+
+<div class="tier-probable">Probable</div>
+<div class="tier-desc">high confidence — direct evidence in recent standups</div>
+
+<div class="todo-item"><span class="todo-check">[ ]</span><span class="todo-text">Open PR for auth module</span> — <span class="todo-proj">auth</span> — <span class="todo-ev">Evidence: 2026-04-14, 2026-04-15 "today" fields</span></div>
+<div class="todo-item"><span class="todo-check">[ ]</span><span class="todo-text">Complete refresh-token unit tests</span> — <span class="todo-proj">auth</span> — <span class="todo-ev">Evidence: 2026-04-15 "today" carry-over ⚠ — consider breaking it down</span></div>
+<div class="todo-item"><span class="todo-check">[ ]</span><span class="todo-text">Follow up on design mockups</span> — <span class="todo-proj">product</span> — <span class="todo-ev">Evidence: blocker since 2026-04-14 — verify before scheduling</span></div>
+
+<div class="tier-possible">Possible</div>
+<div class="tier-desc">medium confidence — thematic or pattern-based</div>
+
+<div class="todo-item"><span class="todo-check">[ ]</span><span class="todo-text">Write API docs for auth endpoints</span> — <span class="todo-proj">docs</span> — <span class="todo-ev">Evidence: open todo #4, auth arc appears near completion</span></div>
+<div class="todo-item"><span class="todo-check">[ ]</span><span class="todo-text">Add integration tests for token refresh path</span> — <span class="todo-proj">auth</span> — <span class="todo-ev">Evidence: unit tests added 2026-04-15, integration step follows naturally</span></div>
+
+<div class="tier-unlikely">Unlikely</div>
+<div class="tier-desc">low confidence — weak signal</div>
+
+<div class="todo-item"><span class="todo-check">[ ]</span><span class="todo-text">Scope onboarding screen implementation</span> — <span class="todo-proj">product</span> — <span class="todo-ev">Evidence: mentioned once 2026-04-12, blocked since</span></div>
+
+<div style="margin-top:14px;border-top:1px solid #30363d;padding-top:10px">
+<div class="bold" style="margin-bottom:6px">Open Todo Audit</div>
+<div class="insight-bullet">Open PR for auth module — last active: 2026-04-15 "today" field</div>
+<div class="insight-bullet">Write API docs — last active: never mentioned in standups</div>
+</div>
+</div>
+</div>
+
+<div class="dim-line">Tokens — input: 1204, output: 421, cache read: 2541, cache write: 0</div>
+    </div>
+  </div>
+
+  <div class="usage-block">
+    <div class="usage-title">How predictions work</div>
+    <div class="usage-cmd"><span class="c-cyan">Probable</span> — item appears in "today" but not yet in "yesterday" (still in flight)</div>
+    <div class="usage-cmd"><span class="c-yellow">Possible</span> — thematically adjacent or open todo with no standup mention</div>
+    <div class="usage-cmd"><span class="c-muted">Unlikely</span> — appeared once, no follow-up</div>
+    <div class="usage-cmd" style="margin-top:8px"><span class="c-red">⚠ carry-over</span> — item in "today" for 3+ standups without resolving</div>
+    <div class="usage-cmd"><span class="c-red">blocked</span> — active blocker in latest standup; verify before scheduling</div>
+    <div class="usage-cmd" style="margin-top:8px"><span class="c-muted">Requires</span> ≥ 3 standup entries. Confidence grows with more data (7+ = MEDIUM–HIGH).</div>
+  </div>
+</div>
+
+<!-- ════════════════ INSIGHTS ════════════════ -->
+<div id="screen-insights" class="screen">
+  <div class="page-title">standup insights</div>
+  <div class="page-sub">Multi-week growth analysis — velocity, project momentum, blockers, work patterns.</div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot-red-btn"></div><div class="dot-yellow-btn"></div><div class="dot-green-btn"></div>
+      <div class="terminal-title">standup insights</div>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">$</span> <span class="prompt-cmd">standup insights</span>
+
+<span class="c-muted">Generating insights...</span>
+
+<div class="rich-panel panel-yellow">
+  <div class="rich-panel-title">Work Insights</div>
+  <div class="rich-panel-body">
+<div class="insight-h2">Velocity Trend</div>
+<div class="rich-table-wrap" style="margin:8px 0">
+<table class="rich-table">
+  <thead><tr><th>Week</th><th>Entries</th><th>Signal</th></tr></thead>
+  <tbody>
+    <tr><td class="c-muted">2026-W13</td><td>2</td><td class="vel-med">🟡 Medium</td></tr>
+    <tr><td class="c-muted">2026-W14</td><td>3</td><td class="vel-med">🟡 Medium</td></tr>
+    <tr><td class="c-muted">2026-W15</td><td>4</td><td class="vel-high">🟢 High</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="insight-p">Positive acceleration: 3-week consecutive increase. No gaps. Consistency building.</div>
+
+<div class="insight-h2">Project Momentum</div>
+<div class="insight-bullet"><span class="c-green">Active</span> — <span class="bold">auth</span>: 3 weeks, most recent 2026-04-15. Dominant project.</div>
+<div class="insight-bullet"><span class="c-green">Active</span> — <span class="bold">product</span>: 1 week, most recent 2026-04-15. Emerging thread.</div>
+<div class="insight-bullet"><span class="c-yellow">Stalled</span> — <span class="bold">infra</span>: last mentioned 2026-04-01. 2 weeks dormant.</div>
+
+<div class="insight-h2">Blocker Analysis</div>
+<div class="insight-bullet">Total blocker mentions: 3 across 9 entries (33% of standups)</div>
+<div class="insight-bullet"><span class="c-red">Recurring</span> — Design dependency: appeared in W14 and W15</div>
+<div class="insight-bullet">Avg resolution time: ~2 days (based on 1 resolved blocker)</div>
+
+<div class="insight-h2">Work Patterns</div>
+<div class="insight-bullet">Consistency score: 9 / 11 estimated working days (82%)</div>
+<div class="insight-bullet">Carry-over rate: 1 item (refresh-token tests, 3 consecutive "today" entries)</div>
+<div class="insight-bullet">Work type distribution: auth 67% · product 22% · infra 11%</div>
+
+<div class="insight-h2">Todo Completion Health</div>
+<div class="insight-bullet">Overall completion rate: 43% (3 done / 7 total)</div>
+<div class="insight-bullet">Manual: 3/5 done (60%). AI-suggested: 0/2 done — too early to assess.</div>
+
+<div class="insight-h2">Growth Signals</div>
+<div class="insight-bullet positive-signal"><span class="signal-pos">Velocity accelerating</span> — 3 consecutive weeks of increasing standup frequency.</div>
+<div class="insight-bullet positive-signal"><span class="signal-pos">Auth arc nearing completion</span> — sustained activity across 3 weeks, functional PR merged. Likely to ship this week.</div>
+<div class="insight-bullet watch-signal"><span class="signal-warn">Design dependency is recurring</span> — blocked twice in 2 weeks. External risk to onboarding timeline.</div>
+<div class="insight-bullet watch-signal"><span class="signal-warn">1 carry-over item</span> — refresh-token tests in "today" for 3 standups. Break it down or time-box it.</div>
+</div>
+</div>
+
+<div class="dim-line">Tokens — input: 1893, output: 587, cache read: 2541, cache write: 0</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+  function showTab(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    const tabs = document.querySelectorAll('.tab');
+    const names = ['overview','log','show','digest','todos','suggest','insights'];
+    const idx = names.indexOf(name);
+    if (idx >= 0) tabs[idx].classList.add('active');
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  }
+
+  // Typewriter animation on first load
+  (function() {
+    const tips = [
+      'standup log',
+      'standup show --week',
+      'standup add "Fix auth bug"',
+      'standup suggest',
+      'standup insights',
+    ];
+    let i = 0;
+  })();
+</script>
+</body>
+</html>
